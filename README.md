@@ -1,16 +1,17 @@
-## Hi there 👋
+## ¡Hola! 👋
 
-<!--
-**diegohv90/diegohv90** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+Soy un **psicólogo del consumidor** enfocado profesionalmente en **ciencia de datos** y **business intelligence**. Me apasiona entender el comportamiento del consumidor y aplicar técnicas de análisis de datos para obtener insights valiosos.
 
-Here are some ideas to get you started:
+### 📚 Aprendizaje
+- Estoy aprendiendo sobre **machine learning** para aplicar estos conocimientos en el análisis de datos del comportamiento del consumidor.
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+### 🤝 Colaboración
+- Me encantaría colaborar en proyectos de **código abierto** relacionados con el **análisis de datos**.
+
+### 📬 Contacto
+- Puedes contactarme a través de mi correo electrónico: [diegohv_25@hotmail.com](mailto:diegohv_25@hotmail.com)
+
+### ⚡ Datos Curiosos
+- Soy un ávido lector de ciencia ficción y me encanta el senderismo.
+
+¡Gracias por visitar mi perfil! 😊
