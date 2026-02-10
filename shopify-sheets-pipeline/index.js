@@ -30,7 +30,8 @@ async function runPipeline() {
     console.log('Step 1: Extracting data from Shopify...');
     const extractor = new ShopifyExtractor(
       config.shopify.storeUrl,
-      config.shopify.accessToken
+      config.shopify.accessToken,
+      config.shopify.apiVersion
     );
     
     const data = await extractor.getData(config.dataToPull);

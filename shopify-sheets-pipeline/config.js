@@ -8,6 +8,7 @@ module.exports = {
   shopify: {
     storeUrl: process.env.SHOPIFY_STORE_URL,
     accessToken: process.env.SHOPIFY_ACCESS_TOKEN,
+    apiVersion: process.env.SHOPIFY_API_VERSION || '2024-01',
   },
   googleSheets: {
     spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID,

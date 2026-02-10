@@ -7,10 +7,11 @@
 const axios = require('axios');
 
 class ShopifyExtractor {
-  constructor(storeUrl, accessToken) {
+  constructor(storeUrl, accessToken, apiVersion = '2024-01') {
     this.storeUrl = storeUrl.replace('https://', '').replace('http://', '');
     this.accessToken = accessToken;
-    this.baseUrl = `https://${this.storeUrl}/admin/api/2024-01`;
+    this.apiVersion = apiVersion;
+    this.baseUrl = `https://${this.storeUrl}/admin/api/${this.apiVersion}`;
   }
 
   /**
