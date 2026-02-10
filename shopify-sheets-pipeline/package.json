@@ -1,0 +1,24 @@
+{
+  "name": "shopify-sheets-pipeline",
+  "version": "1.0.0",
+  "description": "Pipeline para integrar Shopify CLI con Google Sheets",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "sync": "node index.js"
+  },
+  "keywords": [
+    "shopify",
+    "google-sheets",
+    "pipeline",
+    "data-sync"
+  ],
+  "author": "Diego Huamantica",
+  "license": "MIT",
+  "dependencies": {
+    "@shopify/cli": "^3.51.0",
+    "googleapis": "^126.0.0",
+    "dotenv": "^16.3.1",
+    "axios": "^1.6.2"
+  }
+}
