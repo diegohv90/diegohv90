@@ -1,131 +1,131 @@
 # Shopify to Google Sheets Pipeline
 
-Pipeline automatizado para extraer datos de una tienda Shopify y sincronizarlos con Google Sheets. Diseñado para trabajar con acceso de colaborador (no requiere permisos de administrador).
+Automated pipeline to extract data from a Shopify store and sync it with Google Sheets. Designed to work with collaborator access (does not require administrator permissions).
 
-## 📋 Características
+## 📋 Features
 
-- ✅ Extracción de datos de Shopify usando Admin API
-- ✅ Funciona con acceso de colaborador (no necesitas ser admin)
-- ✅ Soporte para múltiples tipos de datos:
-  - Productos
-  - Órdenes
-  - Clientes
-  - Inventario
-- ✅ Sincronización automática con Google Sheets
-- ✅ Formato automático de hoja de cálculo
-- ✅ Manejo robusto de errores
+- ✅ Data extraction from Shopify using Admin API
+- ✅ Works with collaborator access (you don't need to be admin)
+- ✅ Support for multiple data types:
+  - Products
+  - Orders
+  - Customers
+  - Inventory
+- ✅ Automatic synchronization with Google Sheets
+- ✅ Automatic spreadsheet formatting
+- ✅ Robust error handling
 
-## 🚀 Instalación
+## 🚀 Installation
 
-### 1. Instalar dependencias
+### 1. Install dependencies
 
 ```bash
 cd shopify-sheets-pipeline
 npm install
 ```
 
-### 2. Configurar Shopify
+### 2. Configure Shopify
 
-Como colaborador de una tienda Shopify, necesitas obtener un token de acceso:
+As a collaborator in a Shopify store, you need to obtain an access token:
 
-#### Opción A: Token proporcionado por el propietario de la tienda
+#### Option A: Token provided by the store owner
 
-Solicita al administrador de la tienda que cree un token de acceso con los siguientes permisos:
-- `read_products` (para productos)
-- `read_orders` (para órdenes)
-- `read_customers` (para clientes)
-- `read_inventory` (para inventario)
+Request the store administrator to create an access token with the following permissions:
+- `read_products` (for products)
+- `read_orders` (for orders)
+- `read_customers` (for customers)
+- `read_inventory` (for inventory)
 
-#### Opción B: App personalizada (si tienes acceso)
+#### Option B: Custom app (if you have access)
 
-1. Ve a tu tienda Shopify: `https://TU-TIENDA.myshopify.com/admin/apps`
-2. Navega a "Apps" → "App development" → "Create an app"
-3. Configura los scopes necesarios
-4. Genera el Access Token
+1. Go to your Shopify store: `https://YOUR-STORE.myshopify.com/admin/apps`
+2. Navigate to "Apps" → "App development" → "Create an app"
+3. Configure the necessary scopes
+4. Generate the Access Token
 
-### 3. Configurar Google Sheets
+### 3. Configure Google Sheets
 
-#### Crear una cuenta de servicio de Google
+#### Create a Google service account
 
-1. Ve a [Google Cloud Console](https://console.cloud.google.com)
-2. Crea un nuevo proyecto o selecciona uno existente
-3. Habilita la API de Google Sheets:
-   - Ve a "APIs & Services" → "Library"
-   - Busca "Google Sheets API"
-   - Haz clic en "Enable"
-4. Crea una cuenta de servicio:
-   - Ve a "APIs & Services" → "Credentials"
-   - Haz clic en "Create Credentials" → "Service Account"
-   - Completa el formulario y haz clic en "Create"
-   - No necesitas otorgar roles adicionales
-5. Genera una clave:
-   - Haz clic en la cuenta de servicio creada
-   - Ve a la pestaña "Keys"
-   - Haz clic en "Add Key" → "Create new key"
-   - Selecciona "JSON" y descarga el archivo
-6. Guarda el archivo descargado como `credentials.json` en este directorio
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Create a new project or select an existing one
+3. Enable the Google Sheets API:
+   - Go to "APIs & Services" → "Library"
+   - Search for "Google Sheets API"
+   - Click on "Enable"
+4. Create a service account:
+   - Go to "APIs & Services" → "Credentials"
+   - Click on "Create Credentials" → "Service Account"
+   - Complete the form and click "Create"
+   - You don't need to grant additional roles
+5. Generate a key:
+   - Click on the created service account
+   - Go to the "Keys" tab
+   - Click on "Add Key" → "Create new key"
+   - Select "JSON" and download the file
+6. Save the downloaded file as `credentials.json` in this directory
 
-#### Configurar el Spreadsheet
+#### Configure the Spreadsheet
 
-1. Crea una nueva Google Sheet o abre una existente
-2. Comparte la hoja con el email de la cuenta de servicio (encontrarás el email en `credentials.json`, algo como `xxx@xxx.iam.gserviceaccount.com`)
-3. Otorga permisos de "Editor"
-4. Copia el ID del spreadsheet desde la URL:
+1. Create a new Google Sheet or open an existing one
+2. Share the sheet with the service account email (you'll find the email in `credentials.json`, something like `xxx@xxx.iam.gserviceaccount.com`)
+3. Grant "Editor" permissions
+4. Copy the spreadsheet ID from the URL:
    ```
    https://docs.google.com/spreadsheets/d/[SPREADSHEET_ID]/edit
    ```
 
-### 4. Configurar variables de entorno
+### 4. Configure environment variables
 
 ```bash
-# Copia el archivo de ejemplo
+# Copy the example file
 cp .env.example .env
 
-# Edita .env con tus credenciales
+# Edit .env with your credentials
 nano .env
 ```
 
-Configura las siguientes variables:
+Configure the following variables:
 
 ```env
-# URL de tu tienda Shopify (sin https://)
-SHOPIFY_STORE_URL=tu-tienda.myshopify.com
+# Your Shopify store URL (without https://)
+SHOPIFY_STORE_URL=your-store.myshopify.com
 
-# Token de acceso de Shopify
+# Shopify access token
 SHOPIFY_ACCESS_TOKEN=shpat_xxxxxxxxxxxxxxxxxxxxx
 
-# ID del Google Spreadsheet
+# Google Spreadsheet ID
 GOOGLE_SPREADSHEET_ID=1abc123def456...
 
-# Nombre de la hoja (por defecto: Sheet1)
-GOOGLE_SHEET_NAME=Productos
+# Sheet name (default: Sheet1)
+GOOGLE_SHEET_NAME=Products
 
-# Tipo de datos a extraer: products, orders, customers, inventory
+# Data type to extract: products, orders, customers, inventory
 DATA_TO_PULL=products
 ```
 
-## 📖 Uso
+## 📖 Usage
 
-### Ejecutar el pipeline
+### Run the pipeline
 
 ```bash
 npm start
 ```
 
-O directamente:
+Or directly:
 
 ```bash
 node index.js
 ```
 
-### Ejemplo de salida
+### Example output
 
 ```
 === Shopify to Google Sheets Pipeline ===
 
-Store: mi-tienda.myshopify.com
+Store: my-store.myshopify.com
 Data Type: products
-Target Sheet: Productos
+Target Sheet: Products
 
 Step 1: Extracting data from Shopify...
 Fetching products from Shopify...
@@ -146,116 +146,116 @@ Sheet formatted successfully
 View your spreadsheet: https://docs.google.com/spreadsheets/d/1abc123def456...
 ```
 
-## 📊 Tipos de datos soportados
+## 📊 Supported data types
 
-### Products (Productos)
-Extrae información de productos:
+### Products
+Extracts product information:
 - ID
-- Título
-- Proveedor
-- Tipo de producto
-- Fechas de creación y actualización
-- Estado
-- Etiquetas
-- Cantidad de variantes
-- Precio
+- Title
+- Vendor
+- Product type
+- Creation and update dates
+- Status
+- Tags
+- Variant count
+- Price
 
-### Orders (Órdenes)
-Extrae información de órdenes:
-- ID y número de orden
-- Email del cliente
-- Fechas
-- Precios (total, subtotal, impuestos)
-- Estado financiero
-- Estado de fulfillment
-- Cantidad de items
+### Orders
+Extracts order information:
+- ID and order number
+- Customer email
+- Dates
+- Prices (total, subtotal, taxes)
+- Financial status
+- Fulfillment status
+- Item count
 
-### Customers (Clientes)
-Extrae información de clientes:
+### Customers
+Extracts customer information:
 - ID
 - Email
-- Nombre y apellido
-- Cantidad de órdenes
-- Total gastado
-- Fechas
-- Estado
+- First and last name
+- Order count
+- Total spent
+- Dates
+- State
 
-### Inventory (Inventario)
-Extrae niveles de inventario:
-- ID del item
-- ID de ubicación
-- Cantidad disponible
-- Fecha de actualización
+### Inventory
+Extracts inventory levels:
+- Item ID
+- Location ID
+- Available quantity
+- Update date
 
-## 🔧 Estructura del proyecto
+## 🔧 Project structure
 
 ```
 shopify-sheets-pipeline/
-├── index.js                    # Script principal del pipeline
-├── config.js                   # Configuración y variables de entorno
-├── shopifyExtractor.js         # Módulo para extraer datos de Shopify
-├── googleSheetsUploader.js     # Módulo para subir datos a Google Sheets
-├── package.json                # Dependencias del proyecto
-├── .env.example               # Ejemplo de variables de entorno
-├── .env                       # Variables de entorno (no incluido en git)
-├── credentials.json           # Credenciales de Google (no incluido en git)
-└── README.md                  # Este archivo
+├── index.js                    # Main pipeline script
+├── config.js                   # Configuration and environment variables
+├── shopifyExtractor.js         # Module to extract data from Shopify
+├── googleSheetsUploader.js     # Module to upload data to Google Sheets
+├── package.json                # Project dependencies
+├── .env.example               # Environment variables example
+├── .env                       # Environment variables (not included in git)
+├── credentials.json           # Google credentials (not included in git)
+└── README.md                  # This file
 ```
 
-## 🔐 Seguridad
+## 🔐 Security
 
-- ⚠️ **NUNCA** compartas o commits los archivos `.env` o `credentials.json`
-- Estos archivos están incluidos en `.gitignore`
-- Mantén tus tokens y credenciales seguros
-- Revoca tokens que ya no necesites
+- ⚠️ **NEVER** share or commit the `.env` or `credentials.json` files
+- These files are included in `.gitignore`
+- Keep your tokens and credentials secure
+- Revoke tokens you no longer need
 
-## 🐛 Solución de problemas
+## 🐛 Troubleshooting
 
 ### Error: "Authentication failed"
-- Verifica que tu `SHOPIFY_ACCESS_TOKEN` sea válido
-- Asegúrate de que el token tenga los permisos necesarios
-- Verifica que `credentials.json` esté presente y sea válido
+- Verify that your `SHOPIFY_ACCESS_TOKEN` is valid
+- Ensure the token has the necessary permissions
+- Verify that `credentials.json` is present and valid
 
 ### Error: "credentials.json not found"
-- Asegúrate de haber descargado y colocado el archivo de credenciales en el directorio del proyecto
-- Verifica que el nombre del archivo sea exactamente `credentials.json`
+- Make sure you have downloaded and placed the credentials file in the project directory
+- Verify that the file name is exactly `credentials.json`
 
 ### Error: "Sheet not found"
-- Verifica que el `GOOGLE_SHEET_NAME` coincida con el nombre de la pestaña en tu spreadsheet
-- Asegúrate de que la cuenta de servicio tenga acceso al spreadsheet
+- Verify that `GOOGLE_SHEET_NAME` matches the tab name in your spreadsheet
+- Ensure the service account has access to the spreadsheet
 
 ### Error: "Rate limit exceeded"
-- Shopify tiene límites de API (2 requests/segundo para la mayoría de planes)
-- El script ya incluye manejo básico, pero si tienes muchos datos, considera agregar delays
+- Shopify has API limits (2 requests/second for most plans)
+- The script already includes basic handling, but if you have a lot of data, consider adding delays
 
-## 📝 Automatización (Opcional)
+## 📝 Automation (Optional)
 
-### Usando cron (Linux/macOS)
+### Using cron (Linux/macOS)
 
-Para ejecutar el pipeline automáticamente, agrega una entrada a crontab:
+To run the pipeline automatically, add an entry to crontab:
 
 ```bash
-# Ejecutar cada día a las 2:00 AM
-0 2 * * * cd /ruta/a/shopify-sheets-pipeline && node index.js >> logs/pipeline.log 2>&1
+# Run every day at 2:00 AM
+0 2 * * * cd /path/to/shopify-sheets-pipeline && node index.js >> logs/pipeline.log 2>&1
 ```
 
-### Usando Task Scheduler (Windows)
+### Using Task Scheduler (Windows)
 
-1. Abre el Programador de tareas
-2. Crea una nueva tarea básica
-3. Configura el trigger (horario)
-4. Configura la acción: ejecutar `node.exe` con el argumento de ruta al `index.js`
+1. Open Task Scheduler
+2. Create a new basic task
+3. Configure the trigger (schedule)
+4. Configure the action: run `node.exe` with the path argument to `index.js`
 
-## 🤝 Soporte
+## 🤝 Support
 
-Si encuentras problemas o tienes preguntas:
+If you encounter problems or have questions:
 - Email: diego.huamantica@outlook.com
-- Abre un issue en el repositorio
+- Open an issue in the repository
 
-## 📄 Licencia
+## 📄 License
 
-MIT License - Siéntete libre de usar y modificar según tus necesidades.
+MIT License - Feel free to use and modify according to your needs.
 
 ---
 
-Desarrollado por Diego Huamantica
+Developed by Diego Huamantica

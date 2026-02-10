@@ -1,7 +1,7 @@
 {
   "name": "shopify-sheets-pipeline",
   "version": "1.0.0",
-  "description": "Pipeline para integrar Shopify Admin API con Google Sheets",
+  "description": "Pipeline to integrate Shopify Admin API with Google Sheets",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

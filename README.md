@@ -1,18 +1,18 @@
-## ¡Hola! 👋
+## Hello! 👋
 
-Soy un **psicólogo del consumidor** enfocado profesionalmente en **ciencia de datos** y **business intelligence**. Me apasiona entender el comportamiento del consumidor y aplicar técnicas de análisis de datos para obtener insights valiosos.
+I'm a **consumer psychologist** professionally focused on **data science** and **business intelligence**. I'm passionate about understanding consumer behavior and applying data analysis techniques to obtain valuable insights.
 
-### 🔧 Proyectos
+### 🔧 Projects
 
-- **[Shopify to Google Sheets Pipeline](./shopify-sheets-pipeline/)** - Pipeline automatizado para sincronizar datos de Shopify con Google Sheets. Ideal para análisis de datos de e-commerce.
+- **[Shopify to Google Sheets Pipeline](./shopify-sheets-pipeline/)** - Automated pipeline to sync Shopify data with Google Sheets. Ideal for e-commerce data analysis.
 
-### 📚 Aprendizaje
-- Estoy aprendiendo sobre **machine learning** para aplicar estos conocimientos en el análisis de datos del comportamiento del consumidor.
+### 📚 Learning
+- I'm learning about **machine learning** to apply this knowledge in consumer behavior data analysis.
 
-### 🤝 Colaboración
-- Me encantaría colaborar en proyectos de **código abierto** relacionados con el **análisis de datos**.
+### 🤝 Collaboration
+- I would love to collaborate on **open source** projects related to **data analysis**.
 
-### 📬 Contacto
-- Puedes contactarme a través de mi correo electrónico: [diego.huamantica@outlook.com](mailto:diego.huamantica@outlook.com)
+### 📬 Contact
+- You can contact me via email: [diego.huamantica@outlook.com](mailto:diego.huamantica@outlook.com)
 
-¡Gracias por visitar mi perfil! 😊
+Thanks for visiting my profile! 😊

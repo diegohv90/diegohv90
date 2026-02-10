@@ -1,103 +1,103 @@
-# Guía Rápida de Inicio
+# Quick Start Guide
 
-Esta guía te ayudará a configurar el pipeline en 5 minutos.
+This guide will help you set up the pipeline in 5 minutes.
 
-## Paso 1: Instalar dependencias
+## Step 1: Install dependencies
 
 ```bash
 cd shopify-sheets-pipeline
 npm install
 ```
 
-## Paso 2: Configurar variables de entorno
+## Step 2: Configure environment variables
 
 ```bash
-# Copia el archivo de ejemplo
+# Copy the example file
 cp .env.example .env
 
-# Edita el archivo .env
-nano .env  # o usa tu editor favorito
+# Edit the .env file
+nano .env  # or use your favorite editor
 ```
 
-Configura estas variables:
+Configure these variables:
 
 ```env
-SHOPIFY_STORE_URL=tu-tienda.myshopify.com
+SHOPIFY_STORE_URL=your-store.myshopify.com
 SHOPIFY_ACCESS_TOKEN=shpat_xxxxx
 GOOGLE_SPREADSHEET_ID=1abc123def...
 GOOGLE_SHEET_NAME=Sheet1
 DATA_TO_PULL=products
 ```
 
-### ¿Cómo obtener el Shopify Access Token?
+### How to get the Shopify Access Token?
 
-**Como colaborador**, solicita al administrador de la tienda que:
+**As a collaborator**, request the store administrator to:
 
-1. Vaya a: Configuración → Apps y canales de ventas → Develop apps
-2. Cree una nueva app personalizada
-3. Configure los permisos:
-   - `read_products` para productos
-   - `read_orders` para órdenes
-   - `read_customers` para clientes
-   - `read_inventory` para inventario
-4. Instale la app y copie el "Admin API access token"
-5. Te comparta ese token de forma segura
+1. Go to: Settings → Apps and sales channels → Develop apps
+2. Create a new custom app
+3. Configure the permissions:
+   - `read_products` for products
+   - `read_orders` for orders
+   - `read_customers` for customers
+   - `read_inventory` for inventory
+4. Install the app and copy the "Admin API access token"
+5. Share that token with you securely
 
-### ¿Cómo obtener el Google Spreadsheet ID?
+### How to get the Google Spreadsheet ID?
 
-1. Abre tu Google Sheet
-2. Mira la URL: `https://docs.google.com/spreadsheets/d/[ESTE-ES-EL-ID]/edit`
-3. Copia el ID que está entre `/d/` y `/edit`
+1. Open your Google Sheet
+2. Look at the URL: `https://docs.google.com/spreadsheets/d/[THIS-IS-THE-ID]/edit`
+3. Copy the ID that is between `/d/` and `/edit`
 
-## Paso 3: Configurar credenciales de Google
+## Step 3: Configure Google credentials
 
-1. Ve a [Google Cloud Console](https://console.cloud.google.com)
-2. Crea un proyecto nuevo
-3. Habilita la API de Google Sheets
-4. Crea una cuenta de servicio (Service Account)
-5. Descarga las credenciales en formato JSON
-6. Guárdalas como `credentials.json` en este directorio
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Create a new project
+3. Enable the Google Sheets API
+4. Create a Service Account
+5. Download the credentials in JSON format
+6. Save them as `credentials.json` in this directory
 
-**Importante:** Comparte tu Google Sheet con el email de la cuenta de servicio (está en el archivo JSON, algo como `xxx@xxx.iam.gserviceaccount.com`)
+**Important:** Share your Google Sheet with the service account email (it's in the JSON file, something like `xxx@xxx.iam.gserviceaccount.com`)
 
-## Paso 4: Validar configuración
+## Step 4: Validate configuration
 
 ```bash
 npm run test-config
 ```
 
-Si todo está correcto, verás:
+If everything is correct, you'll see:
 
 ```
 ✅ Configuration looks good!
 ```
 
-## Paso 5: Ejecutar el pipeline
+## Step 5: Run the pipeline
 
 ```bash
 npm start
 ```
 
-## ¿Qué datos puedo extraer?
+## What data can I extract?
 
-Cambia `DATA_TO_PULL` en tu archivo `.env` a uno de estos valores:
+Change `DATA_TO_PULL` in your `.env` file to one of these values:
 
-- `products` - Productos de la tienda
-- `orders` - Órdenes y ventas
-- `customers` - Base de clientes
-- `inventory` - Niveles de inventario
+- `products` - Store products
+- `orders` - Orders and sales
+- `customers` - Customer base
+- `inventory` - Inventory levels
 
-## Solución rápida de problemas
+## Quick troubleshooting
 
 ### Error: "credentials.json not found"
-→ Asegúrate de haber descargado y guardado el archivo de credenciales de Google
+→ Make sure you have downloaded and saved the Google credentials file
 
 ### Error: "Authentication failed"
-→ Verifica que tu token de Shopify sea válido y tenga los permisos correctos
+→ Verify that your Shopify token is valid and has the correct permissions
 
 ### Error: "Sheet not found"
-→ Verifica que hayas compartido la hoja con la cuenta de servicio de Google
+→ Verify that you have shared the sheet with the Google service account
 
-## ¿Necesitas ayuda?
+## Need help?
 
-Lee el [README completo](README.md) para más detalles o contacta: diego.huamantica@outlook.com
+Read the [complete README](README.md) for more details or contact: diego.huamantica@outlook.com
