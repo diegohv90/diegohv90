@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Diagnóstico de pantalla</title>
+<style>
+  :root{
+    --bg:#080a0e;
+    --panel:#0e1219;
+    --panel-2:#141a24;
+    --line:rgba(255,255,255,.09);
+    --line-strong:rgba(255,255,255,.16);
+    --ink:#e9eef5;
+    --muted:#77839a;
+    --muted-2:#4d576b;
+    --signal:#39c6ff;      /* cian instrumento */
+    --signal-dim:#1c5f7d;
+    --pass:#34d399;
+    --warn:#f5b544;
+    --fault:#ff5470;
+    --grid:rgba(57,198,255,.10);
+    --mono: ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--sans);}
+  body{
+    height:100dvh;display:flex;flex-direction:column;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-user-select:none;user-select:none;overscroll-behavior:none;
+  }
+  /* ---------- header ---------- */
+  header{
+    display:flex;align-items:center;gap:10px;padding:10px 14px 8px;
+    border-bottom:1px solid var(--line);flex:0 0 auto;
+  }
+  .mark{
+    width:26px;height:26px;border-radius:7px;flex:0 0 auto;position:relative;
+    background:radial-gradient(circle at 30% 30%,var(--signal),var(--signal-dim));
+    box-shadow:0 0 14px rgba(57,198,255,.45);
+  }
+  .mark::after{content:"";position:absolute;inset:6px;border:1.5px solid rgba(0,0,0,.55);border-radius:3px;}
+  .title{display:flex;flex-direction:column;line-height:1.05;margin-right:auto;min-width:0;}
+  .title b{font-size:14px;font-weight:650;letter-spacing:.2px;}
+  .title span{font-family:var(--mono);font-size:9.5px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+  .hbtn{
+    font-family:var(--mono);font-size:10px;letter-spacing:.5px;color:var(--muted);
+    background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer;
+  }
+  .hbtn:active{background:#1b2330;}
+  .hbtn.on{color:var(--signal);border-color:var(--signal-dim);}
+  /* ---------- tabs ---------- */
+  nav{
+    display:flex;gap:6px;padding:9px 12px;overflow-x:auto;flex:0 0 auto;
+    border-bottom:1px solid var(--line);scrollbar-width:none;
+  }
+  nav::-webkit-scrollbar{display:none;}
+  .tab{
+    font-family:var(--mono);font-size:11px;letter-spacing:.4px;white-space:nowrap;
+    color:var(--muted);background:transparent;border:1px solid var(--line);
+    border-radius:999px;padding:8px 13px;cursor:pointer;transition:color .12s,border-color .12s;
+  }
+  .tab .n{color:var(--muted-2);margin-right:6px;}
+  .tab[aria-selected="true"]{color:var(--bg);background:var(--signal);border-color:var(--signal);font-weight:600;}
+  .tab[aria-selected="true"] .n{color:rgba(0,0,0,.5);}
+  /* ---------- stage ---------- */
+  main{flex:1 1 auto;position:relative;min-height:0;}
+  .view{position:absolute;inset:0;display:none;flex-direction:column;}
+  .view.active{display:flex;}
+  .bar{
+    display:flex;align-items:center;gap:10px;padding:10px 14px;flex:0 0 auto;
+    border-bottom:1px solid var(--line);background:var(--panel);
+  }
+  .bar .lead{display:flex;flex-direction:column;gap:2px;margin-right:auto;min-width:0;}
+  .bar .lead b{font-size:12.5px;font-weight:600;}
+  .bar .lead small{color:var(--muted);font-size:10.5px;line-height:1.3;}
+  .stat{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;}
+  .stat b{color:var(--signal);font-variant-numeric:tabular-nums;}
+  .act{
+    font-family:var(--mono);font-size:11px;letter-spacing:.4px;color:var(--ink);
+    background:var(--panel-2);border:1px solid var(--line-strong);border-radius:8px;
+    padding:8px 12px;cursor:pointer;white-space:nowrap;
+  }
+  .act:active{background:#1b2330;}
+  .act.primary{background:var(--signal);color:var(--bg);border-color:var(--signal);font-weight:650;}
+  .act.warn{color:var(--warn);border-color:rgba(245,181,68,.3);}
+
+  .surface{
+    position:relative;flex:1 1 auto;min-height:0;overflow:hidden;
+    touch-action:none;background:
+      radial-gradient(120% 90% at 50% 0%,#0c1017 0%,#070a0e 70%);
+  }
+  .surface.grid-bg::before{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:34px 34px;opacity:.5;
+  }
+  .hint{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    font-family:var(--mono);font-size:11px;letter-spacing:.5px;color:var(--muted-2);
+    text-align:center;pointer-events:none;max-width:78%;line-height:1.6;transition:opacity .3s;
+  }
+  /* ---------- coverage grid ---------- */
+  .cov{position:absolute;inset:0;display:grid;}
+  .cell{border:.5px solid rgba(255,255,255,.03);transition:background .08s,box-shadow .08s;}
+  .cell.hit{background:rgba(57,198,255,.28);box-shadow:inset 0 0 0 .5px rgba(57,198,255,.5);}
+  .cell.dead{background:rgba(245,181,68,.16);box-shadow:inset 0 0 0 1px rgba(245,181,68,.55);}
+  .cell.edge{border-color:rgba(255,255,255,.07);}
+  /* ---------- touch dots ---------- */
+  .dot{
+    position:absolute;width:74px;height:74px;margin:-37px 0 0 -37px;border-radius:50%;
+    border:2px solid var(--signal);background:radial-gradient(circle,rgba(57,198,255,.28),rgba(57,198,255,0) 68%);
+    pointer-events:none;font-family:var(--mono);font-size:9px;color:var(--ink);
+    display:flex;align-items:center;justify-content:center;flex-direction:column;line-height:1.25;
+  }
+  .dot i{font-style:normal;color:var(--signal);font-weight:700;font-size:11px;}
+  .dot.ghost{border-color:var(--fault);background:radial-gradient(circle,rgba(255,84,112,.35),transparent 68%);width:54px;height:54px;margin:-27px 0 0 -27px;}
+  /* ---------- gesture checklist ---------- */
+  .checks{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:0 20px;pointer-events:none;}
+  .chk{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--line);}
+  .chk .box{
+    width:22px;height:22px;border-radius:6px;border:1.5px solid var(--muted-2);flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;color:transparent;
+  }
+  .chk.done .box{background:var(--pass);border-color:var(--pass);color:#04140d;}
+  .chk .lbl{font-size:13px;}
+  .chk .lbl small{display:block;color:var(--muted);font-size:10.5px;font-family:var(--mono);margin-top:1px;}
+  .chk.done .lbl{color:var(--pass);}
+  /* ---------- edge targets ---------- */
+  .target{
+    position:absolute;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;
+    border:2px solid var(--signal);pointer-events:none;
+    animation:pulse 1.2s ease-in-out infinite;
+  }
+  .target::after{content:"";position:absolute;inset:20px;border-radius:50%;background:var(--signal);}
+  .target.ok{border-color:var(--pass);animation:none;}
+  .target.ok::after{background:var(--pass);}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(57,198,255,.4);}50%{box-shadow:0 0 0 12px rgba(57,198,255,0);}}
+  @media (prefers-reduced-motion:reduce){.target{animation:none;}}
+  /* ---------- telemetry HUD ---------- */
+  .hud{
+    flex:0 0 auto;border-top:1px solid var(--line);background:var(--panel);
+    font-family:var(--mono);font-size:10.5px;color:var(--muted);
+    max-height:132px;overflow:hidden;transition:max-height .2s;
+  }
+  .hud.collapsed{max-height:34px;}
+  .hud .top{display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;}
+  .hud .top .lbl{letter-spacing:1.5px;text-transform:uppercase;color:var(--muted-2);}
+  .hud .top .live{margin-left:auto;color:var(--signal);}
+  .hud .top .live b{color:var(--ink);}
+  .hud .rows{padding:0 14px 10px;display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;}
+  .hud .rows div{display:flex;justify-content:space-between;color:var(--muted);border-bottom:1px dotted rgba(255,255,255,.06);padding:2px 0;}
+  .hud .rows div b{color:var(--ink);font-variant-numeric:tabular-nums;}
+  .caret{transition:transform .2s;color:var(--muted-2);}
+  .hud.collapsed .caret{transform:rotate(-90deg);}
+  /* ---------- summary / info ---------- */
+  .scroll{overflow:auto;flex:1 1 auto;padding:14px;-webkit-overflow-scrolling:touch;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;}
+  .card h3{margin:0 0 10px;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:600;}
+  .kv{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .kv:last-child{border-bottom:none;}
+  .kv .k{color:var(--muted);}
+  .kv .v{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+  .pill{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:999px;letter-spacing:.5px;}
+  .pill.ok{color:var(--pass);background:rgba(52,211,153,.12);}
+  .pill.warn{color:var(--warn);background:rgba(245,181,68,.12);}
+  .pill.fault{color:var(--fault);background:rgba(255,84,112,.12);}
+  .pill.idle{color:var(--muted);background:rgba(255,255,255,.05);}
+  .note{font-size:11px;color:var(--muted);line-height:1.55;margin:4px 2px 0;}
+  .big{font-family:var(--mono);font-size:30px;font-variant-numeric:tabular-nums;letter-spacing:-1px;}
+  .row2{display:flex;gap:10px;}
+  .row2>.card{flex:1;text-align:center;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="mark"></div>
+  <div class="title"><b>Diagnóstico de pantalla</b><span id="devtag">iPhone · táctil</span></div>
+  <button class="hbtn" id="fsBtn">Ampliar</button>
+</header>
+
+<nav id="tabs" role="tablist"></nav>
+
+<main id="stage">
+  <!-- COBERTURA -->
+  <section class="view" data-view="cov">
+    <div class="bar">
+      <div class="lead"><b>Cobertura / zonas muertas</b><small>Arrastra un dedo cubriendo toda la superficie, bordes y esquinas.</small></div>
+      <div class="stat"><b id="covPct">0%</b> · muertas <b id="covDead">—</b></div>
+      <button class="act warn" id="covAnalyze">Analizar</button>
+      <button class="act" id="covReset">Reiniciar</button>
+    </div>
+    <div class="surface grid-bg" data-surface="cov">
+      <div class="cov" id="covGrid"></div>
+      <div class="hint" data-hint>pinta cada rincón · las celdas se encienden al tocar</div>
+    </div>
+  </section>
+
+  <!-- MULTITÁCTIL -->
+  <section class="view" data-view="multi">
+    <div class="bar">
+      <div class="lead"><b>Multitáctil</b><small>Apoya varios dedos a la vez. iOS suele reconocer hasta 5 en navegador.</small></div>
+      <div class="stat">activos <b id="mActive">0</b> · máx <b id="mMax">0</b></div>
+      <button class="act" id="mReset">Reiniciar</button>
+    </div>
+    <div class="surface grid-bg" data-surface="multi">
+      <div class="hint" data-hint>apoya 2, 3, 4 y 5 dedos simultáneos</div>
+    </div>
+  </section>
+
+  <!-- GESTOS -->
+  <section class="view" data-view="gest">
+    <div class="bar">
+      <div class="lead"><b>Gestos</b><small>Realiza cada gesto una vez; se marca al detectarse.</small></div>
+      <div class="stat"><b id="gCount">0</b>/6</div>
+      <button class="act" id="gReset">Reiniciar</button>
+    </div>
+    <div class="surface" data-surface="gest">
+      <div class="checks" id="gList"></div>
+    </div>
+  </section>
+
+  <!-- TRAZO -->
+  <section class="view" data-view="draw">
+    <div class="bar">
+      <div class="lead"><b>Trazo</b><small>Dibuja líneas lentas y rectas. Busca cortes o saltos ("jitter").</small></div>
+      <button class="act" id="dClear">Limpiar</button>
+    </div>
+    <div class="surface" data-surface="draw">
+      <canvas id="dCanvas"></canvas>
+      <div class="hint" data-hint>traza líneas continuas por toda la pantalla</div>
+    </div>
+  </section>
+
+  <!-- BORDES -->
+  <section class="view" data-view="edge">
+    <div class="bar">
+      <div class="lead"><b>Bordes y esquinas</b><small>Toca cada objetivo. Son los puntos que más fallan tras un golpe.</small></div>
+      <div class="stat"><b id="eCount">0</b>/12</div>
+      <button class="act primary" id="eStart">Iniciar</button>
+    </div>
+    <div class="surface" data-surface="edge">
+      <div class="hint" data-hint>pulsa «Iniciar» para recorrer los 12 puntos críticos</div>
+    </div>
+  </section>
+
+  <!-- FANTASMA -->
+  <section class="view" data-view="ghost">
+    <div class="bar">
+      <div class="lead"><b>Toques fantasma</b><small>Suelta el teléfono en una mesa y no lo toques durante la vigilancia.</small></div>
+      <div class="stat"><b id="ghStatus">en espera</b> · detectados <b id="ghCount">0</b></div>
+      <button class="act primary" id="ghStart">Vigilar 30 s</button>
+    </div>
+    <div class="surface" data-surface="ghost">
+      <div class="hint" data-hint>registra cualquier toque que aparezca sin tu dedo</div>
+    </div>
+  </section>
+
+  <!-- INFO -->
+  <section class="view" data-view="info">
+    <div class="scroll">
+      <div class="row2">
+        <div class="card"><h3>Refresco</h3><div class="big" id="iHz">—</div><div class="note" id="iHzNote">midiendo…</div></div>
+        <div class="card"><h3>Puntos táctiles</h3><div class="big" id="iTouch">—</div><div class="note">máx. reportado por el sistema</div></div>
+      </div>
+      <div class="card">
+        <h3>Dispositivo</h3>
+        <div class="kv"><span class="k">Resolución CSS</span><span class="v" id="iCss">—</span></div>
+        <div class="kv"><span class="k">Resolución física</span><span class="v" id="iPhys">—</span></div>
+        <div class="kv"><span class="k">Densidad (DPR)</span><span class="v" id="iDpr">—</span></div>
+        <div class="kv"><span class="k">Puntero</span><span class="v" id="iPtr">—</span></div>
+        <div class="kv"><span class="k">Plataforma</span><span class="v" id="iPlat">—</span></div>
+      </div>
+      <p class="note">Para probar hasta el borde real, usa «Ampliar» (pantalla completa) y quita funda y protector. Un protector agrietado o mal puesto puede simular zonas muertas.</p>
+    </div>
+  </section>
+
+  <!-- RESUMEN -->
+  <section class="view" data-view="sum">
+    <div class="bar">
+      <div class="lead"><b>Resumen</b><small>Estado de cada prueba realizada en esta sesión.</small></div>
+      <button class="act primary" id="sExport">Descargar PNG</button>
+    </div>
+    <div class="scroll">
+      <div class="card" id="sCard"></div>
+      <p class="note">Los veredictos dependen de que hayas completado cada prueba a fondo. «Sin datos» significa que aún no la ejecutaste. Guarda el PNG como evidencia para garantía o servicio técnico.</p>
+    </div>
+  </section>
+</main>
+
+<div class="hud collapsed" id="hud">
+  <div class="top" id="hudTop">
+    <span class="caret">▾</span>
+    <span class="lbl">Telemetría</span>
+    <span class="live">activos <b id="hLive">0</b></span>
+  </div>
+  <div class="rows" id="hudRows"></div>
+</div>
+
+<script>
+"use strict";
+(function(){
+  const TABS=[
+    ["cov","Cobertura"],["multi","Multitáctil"],["gest","Gestos"],
+    ["draw","Trazo"],["edge","Bordes"],["ghost","Fantasma"],
+    ["info","Info"],["sum","Resumen"]
+  ];
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+
+  // session results
+  const R={cov:null,multi:null,gest:null,draw:null,edge:null,ghost:null};
+
+  /* ---------- shared telemetry ---------- */
+  const TELEM={pointers:new Map()};
+  const hLive=$("#hLive"),hudRows=$("#hudRows");
+  function renderTelem(){
+    hLive.textContent=TELEM.pointers.size;
+    let html="";
+    let i=0;
+    for(const[id,p]of TELEM.pointers){
+      if(i++>=6)break;
+      const pr=(p.pressure!=null&&p.pressure>0)?p.pressure.toFixed(2):"—";
+      html+=`<div><span>P${id%1000}</span><b>${Math.round(p.x)}, ${Math.round(p.y)} · ${pr}</b></div>`;
+    }
+    if(!html)html=`<div><span>sin contacto</span><b>—</b></div>`;
+    hudRows.innerHTML=html;
+    requestAnimationFrame(renderTelem);
+  }
+  requestAnimationFrame(renderTelem);
+
+  const hud=$("#hud");
+  $("#hudTop").addEventListener("click",()=>hud.classList.toggle("collapsed"));
+
+  /* ---------- generic pointer attach ---------- */
+  function attach(surface,h){
+    const map=new Map();
+    const rect=()=>surface.getBoundingClientRect();
+    function pos(e){const r=rect();return{x:e.clientX-r.left,y:e.clientY-r.top,pressure:e.pressure};}
+    function down(e){
+      e.preventDefault();
+      try{surface.setPointerCapture(e.pointerId);}catch(_){}
+      const p=pos(e);map.set(e.pointerId,p);TELEM.pointers.set(e.pointerId,p);
+      h.down&&h.down(e.pointerId,p,map);
+    }
+    function move(e){
+      if(!map.has(e.pointerId))return;
+      e.preventDefault();
+      const p=pos(e);map.set(e.pointerId,p);TELEM.pointers.set(e.pointerId,p);
+      h.move&&h.move(e.pointerId,p,map);
+    }
+    function up(e){
+      if(!map.has(e.pointerId))return;
+      map.delete(e.pointerId);TELEM.pointers.delete(e.pointerId);
+      h.up&&h.up(e.pointerId,map);
+    }
+    surface.addEventListener("pointerdown",down,{passive:false});
+    surface.addEventListener("pointermove",move,{passive:false});
+    surface.addEventListener("pointerup",up);
+    surface.addEventListener("pointercancel",up);
+    surface.addEventListener("pointerleave",up);
+    return{map,clear(){map.clear();TELEM.pointers.clear();}};
+  }
+  function fadeHint(sfc){const h=$("[data-hint]",sfc);if(h)h.style.opacity="0";}
+
+  /* ================= COBERTURA ================= */
+  (function(){
+    const sfc=$('[data-surface="cov"]'),gridEl=$("#covGrid");
+    let cols=0,rows=0,cells=[],hit=[],total=0,hits=0;
+    const pctEl=$("#covPct"),deadEl=$("#covDead");
+    function build(){
+      const w=sfc.clientWidth,h=sfc.clientHeight;if(!w||!h)return;
+      cols=Math.max(6,Math.round(w/34));rows=Math.max(10,Math.round(h/34));
+      gridEl.style.gridTemplateColumns=`repeat(${cols},1fr)`;
+      gridEl.style.gridTemplateRows=`repeat(${rows},1fr)`;
+      gridEl.innerHTML="";cells=[];hit=[];total=cols*rows;hits=0;
+      for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+        const d=document.createElement("div");d.className="cell";
+        if(r===0||c===0||r===rows-1||c===cols-1)d.classList.add("edge");
+        gridEl.appendChild(d);cells.push(d);hit.push(false);
+      }
+      update();
+    }
+    function mark(p){
+      const c=Math.floor(p.x/(sfc.clientWidth/cols)),r=Math.floor(p.y/(sfc.clientHeight/rows));
+      if(c<0||r<0||c>=cols||r>=rows)return;
+      const i=r*cols+c;if(!hit[i]){hit[i]=true;hits++;cells[i].classList.add("hit");cells[i].classList.remove("dead");update();fadeHint(sfc);}
+    }
+    function update(){
+      const pct=total?Math.round(hits/total*100):0;
+      pctEl.textContent=pct+"%";
+      R.cov={pct,dead:total-hits};
+    }
+    attach(sfc,{down:(id,p)=>mark(p),move:(id,p)=>mark(p)});
+    $("#covAnalyze").addEventListener("click",()=>{
+      let dead=0;cells.forEach((el,i)=>{if(!hit[i]){el.classList.add("dead");dead++;}});
+      deadEl.textContent=dead;R.cov={pct:total?Math.round(hits/total*100):0,dead};
+    });
+    $("#covReset").addEventListener("click",build);
+    window.__covBuild=build;
+    new ResizeObserver(()=>{if(sfc.clientWidth&&!cols)build();}).observe(sfc);
+  })();
+
+  /* ================= MULTITÁCTIL ================= */
+  (function(){
+    const sfc=$('[data-surface="multi"]');let max=0;
+    const aEl=$("#mActive"),mEl=$("#mMax");const dots=new Map();
+    function draw(map){
+      aEl.textContent=map.size;
+      if(map.size>max){max=map.size;mEl.textContent=max;R.multi={max};}
+      for(const[id,el]of dots)if(!map.has(id)){el.remove();dots.delete(id);}
+      for(const[id,p]of map){
+        let el=dots.get(id);
+        if(!el){el=document.createElement("div");el.className="dot";sfc.appendChild(el);dots.set(id,el);}
+        el.style.left=p.x+"px";el.style.top=p.y+"px";
+        el.innerHTML=`<i>P${id%1000}</i>${Math.round(p.x)},${Math.round(p.y)}`;
+      }
+      if(map.size)fadeHint(sfc);
+    }
+    attach(sfc,{down:(i,p,m)=>draw(m),move:(i,p,m)=>draw(m),up:(i,m)=>draw(m)});
+    $("#mReset").addEventListener("click",()=>{max=0;mEl.textContent="0";R.multi=null;});
+  })();
+
+  /* ================= GESTOS ================= */
+  (function(){
+    const sfc=$('[data-surface="gest"]'),list=$("#gList"),cEl=$("#gCount");
+    const items=[
+      ["swipe","Deslizar","un dedo, movimiento rápido en cualquier dirección"],
+      ["pan2","Desplazar con 2 dedos","dos dedos moviéndose juntos"],
+      ["pinchOut","Ampliar (pinch out)","dos dedos separándose"],
+      ["pinchIn","Reducir (pinch in)","dos dedos juntándose"],
+      ["rotate","Rotar","dos dedos girando"],
+      ["longpress","Mantener pulsado","un dedo quieto ~0.6 s"],
+    ];
+    const done={};
+    items.forEach(([k,l,s])=>{
+      const d=document.createElement("div");d.className="chk";d.dataset.k=k;
+      d.innerHTML=`<div class="box">✓</div><div class="lbl">${l}<small>${s}</small></div>`;
+      list.appendChild(d);
+    });
+    function tick(k){
+      if(done[k])return;done[k]=true;
+      $(`.chk[data-k="${k}"]`,list).classList.add("done");
+      const n=Object.keys(done).length;cEl.textContent=n;R.gest={done:n};
+    }
+    // single pointer swipe / longpress
+    let s0=null,lpTimer=null,moved=false;
+    // two pointer
+    let base=null;
+    function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+    function ang(a,b){return Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI;}
+    attach(sfc,{
+      down:(id,p,m)=>{
+        if(m.size===1){s0={...p,t:Date.now()};moved=false;
+          lpTimer=setTimeout(()=>{if(!moved)tick("longpress");},600);}
+        if(m.size===2){const[a,b]=[...m.values()];base={d:dist(a,b),a:ang(a,b),cx:(a.x+b.x)/2,cy:(a.y+b.y)/2};}
+      },
+      move:(id,p,m)=>{
+        if(m.size===1&&s0){
+          const dx=p.x-s0.x,dy=p.y-s0.y;
+          if(Math.hypot(dx,dy)>16){moved=true;clearTimeout(lpTimer);}
+          if(Math.hypot(dx,dy)>70&&(Date.now()-s0.t)<700){tick("swipe");s0=null;}
+        }
+        if(m.size===2&&base){
+          const[a,b]=[...m.values()];const d=dist(a,b),an=ang(a,b);
+          const ratio=d/base.d,da=Math.abs(an-base.a);
+          const cx=(a.x+b.x)/2,cy=(a.y+b.y)/2,pan=Math.hypot(cx-base.cx,cy-base.cy);
+          if(ratio>1.35)tick("pinchOut");
+          if(ratio<0.72)tick("pinchIn");
+          if((da>22&&da<160)&&Math.abs(ratio-1)<0.35)tick("rotate");
+          if(pan>60&&Math.abs(ratio-1)<0.2&&da<15)tick("pan2");
+        }
+      },
+      up:(id,m)=>{clearTimeout(lpTimer);if(m.size<2)base=null;if(m.size===0)s0=null;}
+    });
+    $("#gReset").addEventListener("click",()=>{
+      Object.keys(done).forEach(k=>delete done[k]);
+      $$(".chk",list).forEach(c=>c.classList.remove("done"));cEl.textContent="0";R.gest=null;
+    });
+  })();
+
+  /* ================= TRAZO ================= */
+  (function(){
+    const sfc=$('[data-surface="draw"]'),cv=$("#dCanvas"),ctx=cv.getContext("2d");
+    const last=new Map();let drew=false;
+    function size(){const dpr=Math.min(window.devicePixelRatio||1,3);
+      cv.width=sfc.clientWidth*dpr;cv.height=sfc.clientHeight*dpr;
+      cv.style.width="100%";cv.style.height="100%";ctx.setTransform(dpr,0,0,dpr,0,0);
+      ctx.lineCap="round";ctx.lineJoin="round";ctx.lineWidth=2.5;ctx.strokeStyle="#39c6ff";
+      ctx.shadowColor="rgba(57,198,255,.7)";ctx.shadowBlur=6;}
+    window.__drawSize=size;
+    attach(sfc,{
+      down:(id,p)=>{last.set(id,p);},
+      move:(id,p)=>{const l=last.get(id);if(l){ctx.beginPath();ctx.moveTo(l.x,l.y);ctx.lineTo(p.x,p.y);ctx.stroke();}last.set(id,p);drew=true;R.draw={ok:true};fadeHint(sfc);},
+      up:(id)=>last.delete(id)
+    });
+    $("#dClear").addEventListener("click",()=>{ctx.clearRect(0,0,cv.width,cv.height);});
+  })();
+
+  /* ================= BORDES ================= */
+  (function(){
+    const sfc=$('[data-surface="edge"]'),cEl=$("#eCount");
+    let seq=[],idx=-1,node=null,ok=0;
+    function points(){
+      const w=sfc.clientWidth,h=sfc.clientHeight,m=30;
+      return [
+        [m,m],[w/2,m],[w-m,m],
+        [w-m,h/2],[w-m,h-m],[w/2,h-m],
+        [m,h-m],[m,h/2],
+        [w/4,m],[w-m,h/4],[3*w/4,h-m],[m,3*h/4]
+      ];
+    }
+    function place(){
+      if(node)node.remove();
+      if(idx>=seq.length){finish();return;}
+      const[x,y]=seq[idx];node=document.createElement("div");node.className="target";
+      node.style.left=x+"px";node.style.top=y+"px";sfc.appendChild(node);
+    }
+    function finish(){
+      const h=document.createElement("div");h.className="hint";
+      h.textContent=`Completado · ${ok}/12 puntos respondieron`;sfc.appendChild(h);node=null;
+    }
+    function start(){
+      $$(".hint,.target",sfc).forEach(n=>n.remove());
+      seq=points();idx=0;ok=0;cEl.textContent="0";R.edge={ok:0,total:12};place();
+    }
+    attach(sfc,{down:(id,p)=>{
+      if(idx<0||idx>=seq.length||!node)return;
+      const[x,y]=seq[idx];
+      if(Math.hypot(p.x-x,p.y-y)<48){ok++;cEl.textContent=ok;R.edge={ok,total:12};
+        node.classList.add("ok");setTimeout(()=>{idx++;place();},160);}
+    }});
+    $("#eStart").addEventListener("click",start);
+  })();
+
+  /* ================= FANTASMA ================= */
+  (function(){
+    const sfc=$('[data-surface="ghost"]'),stEl=$("#ghStatus"),cEl=$("#ghCount"),btn=$("#ghStart");
+    let watching=false,count=0,timer=null,tick=null;
+    attach(sfc,{down:(id,p)=>{
+      if(!watching)return;count++;cEl.textContent=count;R.ghost={count};
+      const d=document.createElement("div");d.className="dot ghost";d.style.left=p.x+"px";d.style.top=p.y+"px";
+      d.innerHTML="!";sfc.appendChild(d);
+    }});
+    btn.addEventListener("click",()=>{
+      if(watching)return;
+      $$(".dot",sfc).forEach(n=>n.remove());
+      count=0;cEl.textContent="0";R.ghost=null;
+      stEl.textContent="suelta el teléfono…";stEl.style.color="var(--warn)";
+      let g=3;btn.disabled=true;
+      const grace=setInterval(()=>{g--;stEl.textContent=`inicia en ${g}`;
+        if(g<=0){clearInterval(grace);run();}},1000);
+      function run(){
+        watching=true;let s=30;stEl.textContent="vigilando 30s";stEl.style.color="var(--signal)";
+        tick=setInterval(()=>{s--;stEl.textContent=`vigilando ${s}s`;if(s<=0)stop();},1000);
+      }
+      function stop(){
+        clearInterval(tick);watching=false;btn.disabled=false;
+        const clean=count===0;
+        stEl.textContent=clean?"limpio ✓":`${count} fantasma(s)`;
+        stEl.style.color=clean?"var(--pass)":"var(--fault)";
+        R.ghost={count};
+      }
+    });
+  })();
+
+  /* ================= INFO ================= */
+  (function(){
+    $("#iCss").textContent=`${window.innerWidth} × ${window.innerHeight}`;
+    const dpr=window.devicePixelRatio||1;
+    $("#iPhys").textContent=`${Math.round(screen.width*dpr)} × ${Math.round(screen.height*dpr)}`;
+    $("#iDpr").textContent=dpr.toFixed(2)+"×";
+    $("#iTouch").textContent=navigator.maxTouchPoints||"—";
+    $("#iPtr").textContent=(window.matchMedia&&matchMedia("(pointer:coarse)").matches)?"grueso (táctil)":"fino";
+    $("#iPlat").textContent=(navigator.userAgentData&&navigator.userAgentData.platform)||navigator.platform||"—";
+    // refresh rate
+    let frames=0,t0=performance.now();
+    function loop(t){frames++;const el=t-t0;
+      if(el<1000){requestAnimationFrame(loop);}
+      else{const hz=Math.round(frames/el*1000);$("#iHz").textContent=hz+" Hz";
+        $("#iHzNote").textContent=hz>90?"ProMotion activo (hasta 120)":"puede limitarse por ahorro de energía";}
+    }
+    requestAnimationFrame(loop);
+  })();
+
+  /* ================= RESUMEN ================= */
+  function verdict(){
+    const v=[];
+    v.push(["Cobertura",R.cov?(R.cov.dead===0&&R.cov.pct>=90?["ok",`${R.cov.pct}% · 0 muertas`]:R.cov.dead>0?["warn",`${R.cov.dead} celdas muertas`]:["ok",`${R.cov.pct}%`]):["idle","Sin datos"]]);
+    v.push(["Multitáctil",R.multi?(R.multi.max>=5?["ok",`${R.multi.max} puntos`]:["warn",`solo ${R.multi.max}`]):["idle","Sin datos"]]);
+    v.push(["Gestos",R.gest?(R.gest.done>=6?["ok","6/6"]:["warn",`${R.gest.done}/6`]):["idle","Sin datos"]]);
+    v.push(["Trazo",R.draw?["ok","trazado"]:["idle","Sin datos"]]);
+    v.push(["Bordes",R.edge?(R.edge.ok>=12?["ok","12/12"]:["warn",`${R.edge.ok}/12`]):["idle","Sin datos"]]);
+    v.push(["Fantasma",R.ghost?(R.ghost.count===0?["ok","limpio"]:["fault",`${R.ghost.count} detectados`]):["idle","Sin datos"]]);
+    return v;
+  }
+  function renderSum(){
+    const c=$("#sCard");c.innerHTML="<h3>Estado de pruebas</h3>";
+    verdict().forEach(([k,[cls,txt]])=>{
+      const r=document.createElement("div");r.className="kv";
+      r.innerHTML=`<span class="k">${k}</span><span class="pill ${cls}">${txt}</span>`;c.appendChild(r);
+    });
+  }
+  $("#sExport").addEventListener("click",()=>{
+    try{
+      const dpr=2,W=1080,pad=64,lh=76;const rowsv=verdict();
+      const H=(pad*2)+140+rowsv.length*lh+120;
+      const cv=document.createElement("canvas");cv.width=W*dpr;cv.height=H*dpr;
+      const x=cv.getContext("2d");x.scale(dpr,dpr);
+      x.fillStyle="#080a0e";x.fillRect(0,0,W,H);
+      x.fillStyle="#39c6ff";x.fillRect(pad,pad,40,40);
+      x.fillStyle="#e9eef5";x.font="600 34px -apple-system,system-ui,sans-serif";
+      x.fillText("Diagnóstico de pantalla",pad+58,pad+30);
+      x.fillStyle="#77839a";x.font="20px ui-monospace,monospace";
+      x.fillText(new Date().toLocaleString(),pad+58,pad+62);
+      let y=pad+140;
+      const col={ok:"#34d399",warn:"#f5b544",fault:"#ff5470",idle:"#4d576b"};
+      rowsv.forEach(([k,[cls,txt]])=>{
+        x.fillStyle="#141a24";x.fillRect(pad,y,W-pad*2,lh-14);
+        x.fillStyle="#e9eef5";x.font="26px -apple-system,system-ui,sans-serif";x.fillText(k,pad+22,y+40);
+        x.fillStyle=col[cls];x.font="24px ui-monospace,monospace";
+        x.textAlign="right";x.fillText(txt.toUpperCase(),W-pad-22,y+40);x.textAlign="left";
+        y+=lh;
+      });
+      x.fillStyle="#4d576b";x.font="18px ui-monospace,monospace";
+      x.fillText("iPhone · "+(navigator.maxTouchPoints||"?")+" puntos · "+(window.devicePixelRatio||1).toFixed(1)+"x",pad,y+40);
+      const a=document.createElement("a");a.download="diagnostico-pantalla.png";a.href=cv.toDataURL("image/png");a.click();
+    }catch(err){alert("No se pudo generar el PNG en este visor. Prueba con «Ampliar» o abre el informe en el navegador.");}
+  });
+
+  /* ================= TABS ================= */
+  const tabsEl=$("#tabs"),views=$$(".view");
+  TABS.forEach(([id,label],i)=>{
+    const b=document.createElement("button");b.className="tab";b.setAttribute("role","tab");
+    b.setAttribute("aria-selected",i===0?"true":"false");b.dataset.view=id;
+    b.innerHTML=`<span class="n">${String(i+1).padStart(2,"0")}</span>${label}`;
+    b.addEventListener("click",()=>select(id));tabsEl.appendChild(b);
+  });
+  function select(id){
+    $$(".tab",tabsEl).forEach(t=>t.setAttribute("aria-selected",t.dataset.view===id?"true":"false"));
+    views.forEach(v=>v.classList.toggle("active",v.dataset.view===id));
+    if(id==="cov"&&window.__covBuild)window.__covBuild();
+    if(id==="draw"&&window.__drawSize)requestAnimationFrame(window.__drawSize);
+    if(id==="sum")renderSum();
+    const active=$$(".tab",tabsEl).find(t=>t.dataset.view===id);
+    if(active)active.scrollIntoView({inline:"center",block:"nearest",behavior:"smooth"});
+  }
+  views[0].classList.add("active");
+  requestAnimationFrame(()=>{if(window.__covBuild)window.__covBuild();});
+  window.addEventListener("resize",()=>{if(window.__covBuild)window.__covBuild();if(window.__drawSize)window.__drawSize();});
+
+  /* ---------- fullscreen ---------- */
+  const fsBtn=$("#fsBtn");
+  fsBtn.addEventListener("click",()=>{
+    const el=document.documentElement;
+    if(!document.fullscreenElement){(el.requestFullscreen||el.webkitRequestFullscreen||(()=>{})).call(el)
+      .then?.(()=>{}).catch?.(()=>{});fsBtn.classList.add("on");fsBtn.textContent="Reducir";}
+    else{(document.exitFullscreen||document.webkitExitFullscreen||(()=>{})).call(document);fsBtn.classList.remove("on");fsBtn.textContent="Ampliar";}
+  });
+  document.addEventListener("fullscreenchange",()=>{
+    const on=!!document.fullscreenElement;fsBtn.classList.toggle("on",on);fsBtn.textContent=on?"Reducir":"Ampliar";
+    if(window.__covBuild)window.__covBuild();
+  });
+
+  // block iOS pinch-zoom on the whole doc
+  document.addEventListener("gesturestart",e=>e.preventDefault());
+  document.addEventListener("dblclick",e=>e.preventDefault(),{passive:false});
+})();
+</script>
+</body>
+</html>

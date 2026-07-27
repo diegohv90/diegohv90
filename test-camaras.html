@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Diagnóstico de cámaras</title>
+<style>
+  :root{
+    --bg:#080a0e;--panel:#0e1219;--panel-2:#141a24;
+    --line:rgba(255,255,255,.09);--line-strong:rgba(255,255,255,.16);
+    --ink:#e9eef5;--muted:#77839a;--muted-2:#4d576b;
+    --signal:#39c6ff;--signal-dim:#1c5f7d;
+    --pass:#34d399;--warn:#f5b544;--fault:#ff5470;
+    --r:#ff5470;--g:#34d399;--b:#39c6ff;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--sans);}
+  body{height:100dvh;display:flex;flex-direction:column;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-user-select:none;user-select:none;overscroll-behavior:none;}
+  header{display:flex;align-items:center;gap:10px;padding:10px 14px 8px;border-bottom:1px solid var(--line);flex:0 0 auto;}
+  .mark{width:26px;height:26px;border-radius:7px;flex:0 0 auto;position:relative;
+    background:radial-gradient(circle at 30% 30%,var(--signal),var(--signal-dim));box-shadow:0 0 14px rgba(57,198,255,.45);}
+  .mark::after{content:"";position:absolute;inset:7px 6px;border:1.5px solid rgba(0,0,0,.6);border-radius:50%;}
+  .title{display:flex;flex-direction:column;line-height:1.05;margin-right:auto;min-width:0;}
+  .title b{font-size:14px;font-weight:650;letter-spacing:.2px;}
+  .title span{font-family:var(--mono);font-size:9.5px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+  .hbtn{font-family:var(--mono);font-size:10px;letter-spacing:.5px;color:var(--muted);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer;}
+  .hbtn:active{background:#1b2330;}
+  nav{display:flex;gap:6px;padding:9px 12px;overflow-x:auto;flex:0 0 auto;border-bottom:1px solid var(--line);scrollbar-width:none;}
+  nav::-webkit-scrollbar{display:none;}
+  .tab{font-family:var(--mono);font-size:11px;letter-spacing:.4px;white-space:nowrap;color:var(--muted);
+    background:transparent;border:1px solid var(--line);border-radius:999px;padding:8px 13px;cursor:pointer;}
+  .tab .n{color:var(--muted-2);margin-right:6px;}
+  .tab[aria-selected="true"]{color:var(--bg);background:var(--signal);border-color:var(--signal);font-weight:600;}
+  .tab[aria-selected="true"] .n{color:rgba(0,0,0,.5);}
+  main{flex:1 1 auto;position:relative;min-height:0;}
+  .view{position:absolute;inset:0;display:none;flex-direction:column;}
+  .view.active{display:flex;}
+  .scroll{overflow:auto;flex:1 1 auto;padding:14px;-webkit-overflow-scrolling:touch;}
+
+  /* video */
+  .stage{position:relative;background:#000;flex:0 0 auto;height:46%;min-height:180px;overflow:hidden;
+    border-bottom:1px solid var(--line);}
+  video{width:100%;height:100%;object-fit:contain;background:#000;display:block;}
+  .stage .badge{position:absolute;top:8px;left:10px;font-family:var(--mono);font-size:10px;
+    background:rgba(0,0,0,.55);border:1px solid var(--line);border-radius:6px;padding:4px 8px;color:var(--signal);}
+  .stage .chips{position:absolute;bottom:8px;left:10px;right:10px;display:flex;gap:6px;flex-wrap:wrap;}
+  .flag{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:6px;background:rgba(0,0,0,.5);
+    border:1px solid var(--line);color:var(--muted-2);}
+  .flag.on{color:var(--fault);border-color:rgba(255,84,112,.5);background:rgba(255,84,112,.12);}
+
+  /* controls bar */
+  .bar{display:flex;align-items:center;gap:10px;padding:10px 14px;flex:0 0 auto;border-bottom:1px solid var(--line);background:var(--panel);}
+  .bar .lead{display:flex;flex-direction:column;gap:2px;margin-right:auto;min-width:0;}
+  .bar .lead b{font-size:12.5px;font-weight:600;}
+  .bar .lead small{color:var(--muted);font-size:10.5px;line-height:1.3;}
+  .act{font-family:var(--mono);font-size:11px;letter-spacing:.4px;color:var(--ink);background:var(--panel-2);
+    border:1px solid var(--line-strong);border-radius:8px;padding:8px 12px;cursor:pointer;white-space:nowrap;}
+  .act:active{background:#1b2330;}
+  .act.primary{background:var(--signal);color:var(--bg);border-color:var(--signal);font-weight:650;}
+  .act:disabled{opacity:.4;}
+
+  /* meters */
+  .meter{margin:0 0 14px;}
+  .meter .h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+  .meter .h .k{font-size:12px;color:var(--muted);}
+  .meter .h .v{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;}
+  .meter .track{height:9px;background:#141a24;border-radius:5px;overflow:hidden;border:1px solid var(--line);}
+  .meter .fill{height:100%;width:0%;background:var(--signal);border-radius:5px;transition:width .12s;}
+  .meter .fill.g{background:var(--g);}.meter .fill.r{background:var(--r);}.meter .fill.b{background:var(--b);}
+  .meter small{display:block;color:var(--muted-2);font-family:var(--mono);font-size:10px;margin-top:5px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;}
+  .card h3{margin:0 0 10px;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:600;}
+
+  /* device list */
+  .dev{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;cursor:pointer;background:var(--panel);}
+  .dev.sel{border-color:var(--signal);background:rgba(57,198,255,.06);}
+  .dev .ico{width:34px;height:34px;border-radius:8px;background:var(--panel-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;color:var(--signal);font-size:16px;}
+  .dev .txt{flex:1;min-width:0;}
+  .dev .txt b{font-size:13px;display:block;}
+  .dev .txt small{font-family:var(--mono);font-size:10px;color:var(--muted);}
+  .dev .st{font-family:var(--mono);font-size:10px;color:var(--muted-2);}
+  .dev.sel .st{color:var(--signal);}
+
+  /* lens grid */
+  .lensgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+  .lens{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#000;}
+  .lens img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#0c1017;}
+  .lens .cap{padding:7px;font-family:var(--mono);font-size:9.5px;color:var(--muted);text-align:center;line-height:1.3;}
+  .lens .cap b{color:var(--ink);display:block;font-size:10.5px;}
+
+  /* pixel map */
+  .pmap{position:relative;width:100%;aspect-ratio:4/3;background:#0c1017;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  .pmap i{position:absolute;width:3px;height:3px;margin:-1px;border-radius:50%;}
+  .pmap i.hot{background:var(--fault);box-shadow:0 0 4px var(--fault);}
+  .pmap i.dead{background:#fff;box-shadow:0 0 4px #fff;}
+
+  .banner{margin:14px;padding:14px;border:1px solid rgba(245,181,68,.35);background:rgba(245,181,68,.08);border-radius:12px;
+    font-size:12.5px;line-height:1.55;color:var(--ink);display:none;}
+  .banner.show{display:block;}
+  .banner b{color:var(--warn);}
+  .note{font-size:11px;color:var(--muted);line-height:1.55;margin:4px 2px 0;}
+  .kv{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .kv:last-child{border-bottom:none;}
+  .kv .k{color:var(--muted);}
+  .kv .v{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+  .pill{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:999px;letter-spacing:.5px;}
+  .pill.ok{color:var(--pass);background:rgba(52,211,153,.12);}
+  .pill.warn{color:var(--warn);background:rgba(245,181,68,.12);}
+  .pill.fault{color:var(--fault);background:rgba(255,84,112,.12);}
+  .pill.idle{color:var(--muted);background:rgba(255,255,255,.05);}
+
+  .status{flex:0 0 auto;border-top:1px solid var(--line);background:var(--panel);font-family:var(--mono);font-size:10.5px;
+    color:var(--muted);padding:8px 14px;display:flex;gap:14px;justify-content:space-between;}
+  .status b{color:var(--ink);}
+  .big{font-family:var(--mono);font-size:30px;font-variant-numeric:tabular-nums;letter-spacing:-1px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="mark"></div>
+  <div class="title"><b>Diagnóstico de cámaras</b><span>iPhone · óptica trasera</span></div>
+  <button class="hbtn" id="fsBtn">Ampliar</button>
+</header>
+
+<nav id="tabs" role="tablist"></nav>
+
+<main id="stage">
+  <!-- CÁMARAS -->
+  <section class="view active" data-view="cams">
+    <div class="scroll">
+      <div class="banner" id="banner"></div>
+      <div class="card" id="startCard">
+        <h3>Acceso a la cámara</h3>
+        <p class="note" style="margin-bottom:12px">Concede permiso para detectar y probar cada lente. Todo el análisis ocurre en tu dispositivo; no se envía ni guarda ninguna imagen.</p>
+        <button class="act primary" id="grantBtn" style="width:100%">Conceder acceso e iniciar</button>
+      </div>
+      <div id="devList"></div>
+      <p class="note" id="devHint" style="display:none">Toca una cámara para activarla. Luego ve a «Análisis» para las pruebas en vivo, o a «Lentes» para comparar las 3 traseras.</p>
+    </div>
+  </section>
+
+  <!-- ANÁLISIS -->
+  <section class="view" data-view="live">
+    <div class="stage">
+      <video id="vid" playsinline webkit-playsinline muted autoplay></video>
+      <div class="badge" id="liveBadge">—</div>
+      <div class="chips">
+        <span class="flag" id="fBlack">negro</span>
+        <span class="flag" id="fFrozen">congelado</span>
+        <span class="flag" id="fChan">canal muerto</span>
+      </div>
+    </div>
+    <div class="bar">
+      <div class="lead"><b>Análisis en vivo</b><small>Mueve el teléfono y tapa/destapa el lente para probar cada métrica.</small></div>
+    </div>
+    <div class="scroll">
+      <div class="meter"><div class="h"><span class="k">Brillo (exposición)</span><span class="v" id="mBriV">—</span></div>
+        <div class="track"><div class="fill" id="mBri"></div></div>
+        <small id="mBriN">un lente tapado debe caer a ~0; destapado debe subir</small></div>
+      <div class="meter"><div class="h"><span class="k">Nitidez (enfoque)</span><span class="v" id="mFocV">—</span></div>
+        <div class="track"><div class="fill" id="mFoc"></div></div>
+        <small id="mFocN">acerca y aleja un objeto con detalle; el pico indica enfoque activo</small></div>
+      <div class="meter"><div class="h"><span class="k">Movimiento entre cuadros</span><span class="v" id="mMovV">—</span></div>
+        <div class="track"><div class="fill" id="mMov"></div></div>
+        <small id="mMovN">si queda en 0 mientras mueves el teléfono, el cuadro está congelado</small></div>
+      <div class="card"><h3>Canales de color</h3>
+        <div class="meter"><div class="h"><span class="k">Rojo</span><span class="v" id="mRV">—</span></div><div class="track"><div class="fill r" id="mR"></div></div></div>
+        <div class="meter"><div class="h"><span class="k">Verde</span><span class="v" id="mGV">—</span></div><div class="track"><div class="fill g" id="mG"></div></div></div>
+        <div class="meter" style="margin-bottom:0"><div class="h"><span class="k">Azul</span><span class="v" id="mBV">—</span></div><div class="track"><div class="fill b" id="mB"></div></div></div>
+        <small style="display:block;color:var(--muted-2);font-family:var(--mono);font-size:10px;margin-top:10px">apunta a algo blanco: los 3 deben quedar altos y parejos</small>
+      </div>
+    </div>
+  </section>
+
+  <!-- LENTES -->
+  <section class="view" data-view="lens">
+    <div class="bar">
+      <div class="lead"><b>Comparación de lentes</b><small>Captura la misma escena con cada cámara trasera para confirmar que las 3 encuadran distinto.</small></div>
+      <button class="act primary" id="lensRun">Capturar</button>
+    </div>
+    <div class="scroll">
+      <div class="lensgrid" id="lensGrid"></div>
+      <p class="note" id="lensNote" style="margin-top:12px">Apunta a una escena con profundidad (no una pared lisa) y pulsa «Capturar». Verás cómo cada lente recorta más de cerca: ultra gran angular → gran angular → teleobjetivo. Si dos salen idénticas, un lente podría no estar cambiando.</p>
+    </div>
+  </section>
+
+  <!-- PÍXELES -->
+  <section class="view" data-view="pix">
+    <div class="stage" style="height:34%;min-height:150px">
+      <video id="vidP" playsinline webkit-playsinline muted autoplay></video>
+      <div class="badge" id="pixBadge">—</div>
+    </div>
+    <div class="bar">
+      <div class="lead"><b>Píxeles muertos / calientes</b><small>Tapa el lente para calientes; apunta a superficie blanca uniforme para muertos.</small></div>
+    </div>
+    <div class="scroll">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="act" id="scanHot" style="flex:1">Calientes (lente tapado)</button>
+        <button class="act" id="scanDead" style="flex:1">Muertos (blanco)</button>
+      </div>
+      <div class="card"><div class="h" style="display:flex;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:12px;color:var(--muted)">Anomalías detectadas</span><span class="big" id="pixCount" style="font-size:22px">—</span></div>
+        <div class="pmap" id="pmap"></div>
+        <p class="note" id="pixNote">El escaneo lee el sensor a resolución nativa. Unos pocos puntos suelen ser ruido o polvo; muchos o agrupados sí son señal de problema.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CAPTURA -->
+  <section class="view" data-view="shot">
+    <div class="stage"><video id="vidS" playsinline webkit-playsinline muted autoplay></video><div class="badge" id="shotBadge">—</div></div>
+    <div class="bar">
+      <div class="lead"><b>Captura</b><small>Toma una foto a máxima resolución para inspeccionar y guardar.</small></div>
+      <button class="act primary" id="shotBtn">Tomar foto</button>
+    </div>
+    <div class="scroll">
+      <div id="shotWrap"></div>
+      <div class="card" id="capCard"><h3>Capacidades del navegador</h3>
+        <div class="kv"><span class="k">Zoom</span><span class="v" id="capZoom">comprobando…</span></div>
+        <div class="kv"><span class="k">Linterna / flash</span><span class="v" id="capTorch">comprobando…</span></div>
+        <div id="torchWrap" style="margin-top:10px;display:none"><button class="act" id="torchBtn" style="width:100%">Encender linterna</button></div>
+      </div>
+      <p class="note">En iOS el navegador casi nunca deja controlar el flash ni el zoom óptico. Si aparece «no soportado», prueba el flash desde la app Cámara de forma manual.</p>
+    </div>
+  </section>
+
+  <!-- RESUMEN -->
+  <section class="view" data-view="sum">
+    <div class="bar"><div class="lead"><b>Resumen</b><small>Estado por cámara y por prueba en esta sesión.</small></div>
+      <button class="act primary" id="sExport">Descargar PNG</button></div>
+    <div class="scroll">
+      <div class="card" id="sCams"><h3>Cámaras detectadas</h3><div id="sCamList"></div></div>
+      <div class="card" id="sTests"><h3>Pruebas</h3><div id="sTestList"></div></div>
+      <p class="note">«Sin datos» = prueba no ejecutada. Ejecuta cada módulo con la cámara que quieras verificar; el resumen refleja la última medición. Guarda el PNG como evidencia para garantía o servicio técnico.</p>
+    </div>
+  </section>
+</main>
+
+<div class="status"><span>cámara <b id="stCam">—</b></span><span><b id="stRes">—</b> · <b id="stFps">—</b> fps</span></div>
+
+<script>
+"use strict";
+(function(){
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const TABS=[["cams","Cámaras"],["live","Análisis"],["lens","Lentes"],["pix","Píxeles"],["shot","Captura"],["sum","Resumen"]];
+
+  const state={stream:null,track:null,devices:[],currentId:null,currentLabel:"—"};
+  const results={}; // per label: {bright, focusRange, frozen, channels, hot, dead}
+  const tests={brillo:null,enfoque:null,movimiento:null,color:null,pixeles:null,lentes:null};
+
+  /* ---------- tabs ---------- */
+  const tabsEl=$("#tabs"),views=$$(".view");
+  TABS.forEach(([id,label],i)=>{
+    const b=document.createElement("button");b.className="tab";b.setAttribute("role","tab");
+    b.setAttribute("aria-selected",i===0?"true":"false");b.dataset.view=id;
+    b.innerHTML=`<span class="n">${String(i+1).padStart(2,"0")}</span>${label}`;
+    b.addEventListener("click",()=>select(id));tabsEl.appendChild(b);
+  });
+  function select(id){
+    $$(".tab",tabsEl).forEach(t=>t.setAttribute("aria-selected",t.dataset.view===id?"true":"false"));
+    views.forEach(v=>v.classList.toggle("active",v.dataset.view===id));
+    bindVideo();
+    if(id==="sum")renderSum();
+    if(id==="shot")probeCaps();
+  }
+
+  /* ---------- camera core ---------- */
+  const banner=$("#banner");
+  function showBanner(msg){banner.innerHTML=msg;banner.classList.add("show");}
+  function isBack(l){l=(l||"").toLowerCase();return !/front|frontal|face|selfie/.test(l);}
+
+  async function grant(){
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+      showBanner("<b>Cámara no disponible.</b> Este navegador no expone <code>getUserMedia</code>. Abre el artefacto en Safari por HTTPS.");
+      return;
+    }
+    try{
+      const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
+      setStream(s);
+      await enumerate();
+      $("#startCard").style.display="none";
+      $("#devHint").style.display="block";
+    }catch(e){
+      const n=e&&e.name;
+      if(n==="NotAllowedError"||n==="SecurityError"){
+        showBanner("<b>Acceso bloqueado.</b> El visor de artefactos dentro de la app suele impedir la cámara. Solución: <b>publica</b> el artefacto (o ábrelo en <b>Safari</b> por HTTPS) y, cuando el navegador lo pida, concede permiso de cámara.");
+      }else if(n==="NotFoundError"){
+        showBanner("<b>No se encontró cámara.</b> El sistema no reporta ninguna cámara disponible.");
+      }else{
+        showBanner("<b>No se pudo iniciar.</b> "+(e&&e.message?e.message:n||"error desconocido")+".");
+      }
+    }
+  }
+  function setStream(s){
+    stopStream();
+    state.stream=s;state.track=s.getVideoTracks()[0];
+    const st=state.track.getSettings?state.track.getSettings():{};
+    state.currentId=st.deviceId||null;
+    state.currentLabel=state.track.label||"cámara";
+    bindVideo();startFps();
+    $("#stCam").textContent=state.currentLabel;
+  }
+  function stopStream(){if(state.stream){state.stream.getTracks().forEach(t=>t.stop());state.stream=null;state.track=null;}}
+  function bindVideo(){
+    const v=$$(".view.active video")[0]||null;
+    if(v&&state.stream&&v.srcObject!==state.stream){v.srcObject=state.stream;v.play().catch(()=>{});}
+  }
+  async function enumerate(){
+    const list=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==="videoinput");
+    state.devices=list;renderDevs();updateBadges();
+  }
+  async function useCamera(id){
+    try{
+      stopStream();
+      const v={audio:false,video:id?{deviceId:{exact:id}}:{facingMode:{ideal:"environment"}}};
+      v.video.width={ideal:4032};v.video.height={ideal:3024};
+      const s=await navigator.mediaDevices.getUserMedia(v);
+      setStream(s);renderDevs();updateReadout();
+    }catch(e){showBanner("<b>No se pudo cambiar de cámara.</b> "+(e.message||e.name));}
+  }
+  function updateReadout(){
+    const st=state.track&&state.track.getSettings?state.track.getSettings():{};
+    const res=(st.width&&st.height)?`${st.width}×${st.height}`:"—";
+    $("#stRes").textContent=res;
+    $$(".badge").forEach(b=>b.textContent=`${state.currentLabel} · ${res}`);
+    $("#liveBadge").textContent=`${state.currentLabel} · ${res}`;
+  }
+
+  /* device list */
+  function renderDevs(){
+    const wrap=$("#devList");wrap.innerHTML="";
+    state.devices.forEach((d,i)=>{
+      const back=isBack(d.label);
+      const el=document.createElement("div");el.className="dev"+(d.deviceId===state.currentId?" sel":"");
+      el.innerHTML=`<div class="ico">${back?"◉":"☺"}</div>
+        <div class="txt"><b>${d.label||("Cámara "+(i+1))}</b><small>${back?"trasera":"frontal"} · ${(d.deviceId||"").slice(0,8)||"—"}</small></div>
+        <div class="st">${d.deviceId===state.currentId?"activa":"tocar"}</div>`;
+      el.addEventListener("click",()=>useCamera(d.deviceId));
+      wrap.appendChild(el);
+    });
+    updateReadout();
+  }
+  function updateBadges(){/* reserved */}
+
+  /* ---------- fps ---------- */
+  let fpsFrames=0,fpsT=performance.now();
+  function startFps(){/* loop already running */}
+  (function fpsLoop(){
+    fpsFrames++;const now=performance.now();
+    if(now-fpsT>=1000){$("#stFps").textContent=Math.round(fpsFrames*1000/(now-fpsT));fpsFrames=0;fpsT=now;}
+    requestAnimationFrame(fpsLoop);
+  })();
+
+  /* ---------- live analysis ---------- */
+  const ac=document.createElement("canvas");ac.width=256;ac.height=192;
+  const acx=ac.getContext("2d",{willReadFrequently:true});
+  let prevLuma=null,focusMin=1e9,focusMax=0,briMin=255,briMax=0,lastMove=0,frozenSince=0;
+  function clamp(x){return Math.max(0,Math.min(100,x));}
+  function analyze(){
+    const v=$("#vid");
+    if(v&&v.videoWidth&&views.find(x=>x.classList.contains("active")&&x.dataset.view==="live")){
+      acx.drawImage(v,0,0,ac.width,ac.height);
+      let d;try{d=acx.getImageData(0,0,ac.width,ac.height).data;}catch(e){d=null;}
+      if(d){
+        const N=ac.width*ac.height;let sr=0,sg=0,sb=0;
+        const luma=new Float32Array(N);
+        for(let i=0,p=0;i<d.length;i+=4,p++){const r=d[i],g=d[i+1],b=d[i+2];sr+=r;sg+=g;sb+=b;luma[p]=0.299*r+0.587*g+0.114*b;}
+        const mr=sr/N,mg=sg/N,mb=sb/N,ml=(0.299*mr+0.587*mg+0.114*mb);
+        // sharpness: laplacian variance
+        let lap=0;const W=ac.width;
+        for(let y=1;y<ac.height-1;y++)for(let x=1;x<W-1;x++){const p=y*W+x;
+          const l=4*luma[p]-luma[p-1]-luma[p+1]-luma[p-W]-luma[p+W];lap+=l*l;}
+        const focus=lap/N;
+        // frame diff
+        let diff=0;if(prevLuma){for(let p=0;p<N;p++)diff+=Math.abs(luma[p]-prevLuma[p]);diff/=N;}
+        prevLuma=luma;
+        // update meters
+        setMeter("mBri","mBriV",clamp(ml/255*100),ml.toFixed(0),ml<3?"fault":ml>250?"warn":"");
+        briMin=Math.min(briMin,ml);briMax=Math.max(briMax,ml);
+        focusMin=Math.min(focusMin,focus);focusMax=Math.max(focusMax,focus);
+        const fScaled=clamp(Math.log10(focus+1)/Math.log10(4000)*100);
+        setMeter("mFoc","mFocV",fScaled,focus.toFixed(0),"");
+        $("#mFocN").textContent=`recorrido observado: ${focusMin.toFixed(0)}–${focusMax.toFixed(0)} · rango amplio = enfoque responde`;
+        const mScaled=clamp(diff/25*100);
+        setMeter("mMov","mMovV",mScaled,diff.toFixed(1),"");
+        setMeter("mR","mRV",mr/255*100,mr.toFixed(0),"");
+        setMeter("mG","mGV",mg/255*100,mg.toFixed(0),"");
+        setMeter("mB","mBV",mb/255*100,mb.toFixed(0),"");
+        // flags
+        const black=ml<3;$("#fBlack").classList.toggle("on",black);
+        const now=performance.now();
+        if(diff>0.4)lastMove=now;
+        const frozen=(now-lastMove>2500)&&prevLuma!=null&&ml>3;
+        $("#fFrozen").classList.toggle("on",frozen);
+        const mx=Math.max(mr,mg,mb),mn=Math.min(mr,mg,mb);
+        const chanDead=(mx>40&&mn<mx*0.12);$("#fChan").classList.toggle("on",chanDead);
+        // record
+        tests.brillo=briMax-briMin>15?"ok":(briMax>3?"warn":"fault");
+        tests.enfoque=(focusMax>0&&focusMax/(focusMin+1)>2.2)?"ok":"warn";
+        tests.movimiento=frozen?"fault":"ok";
+        tests.color=chanDead?"fault":(mx>40&&mn>mx*0.4?"ok":"warn");
+        results[state.currentLabel]=Object.assign(results[state.currentLabel]||{},{brillo:tests.brillo,enfoque:tests.enfoque,color:tests.color});
+      }
+    }
+    requestAnimationFrame(analyze);
+  }
+  function setMeter(fill,val,pct,text,cls){
+    const f=$("#"+fill);if(f){f.style.width=pct+"%";if(cls){f.style.background=cls==="fault"?"var(--fault)":cls==="warn"?"var(--warn)":"";}else if(fill==="mBri"){f.style.background="";}}
+    const t=$("#"+val);if(t)t.textContent=text;
+  }
+  requestAnimationFrame(analyze);
+
+  /* ---------- lentes (FOV) ---------- */
+  $("#lensRun").addEventListener("click",async()=>{
+    if(!state.stream){select("cams");showBanner("<b>Primero concede acceso a la cámara</b> en la pestaña «Cámaras».");return;}
+    const backs=state.devices.filter(d=>isBack(d.label));
+    const grid=$("#lensGrid");grid.innerHTML="";
+    const targets=backs.length?backs:[{deviceId:state.currentId,label:state.currentLabel}];
+    const btn=$("#lensRun");btn.disabled=true;btn.textContent="Capturando…";
+    const shots=[];
+    for(const d of targets){
+      try{
+        await useCamera(d.deviceId);
+        await wait(900);
+        const v=$$(".view.active video")[0]||$("#vid");
+        const thumb=snap(v,320);
+        shots.push(thumb);
+        const cell=document.createElement("div");cell.className="lens";
+        cell.innerHTML=`<img src="${thumb}"><div class="cap"><b>${shortLens(d.label)}</b>${(d.deviceId||"").slice(0,6)}</div>`;
+        grid.appendChild(cell);
+      }catch(e){/* skip */}
+    }
+    // distinctness check
+    let warn="";
+    if(shots.length>=2){
+      let sim=0;for(let i=1;i<shots.length;i++){if(shots[i]===shots[i-1])sim++;}
+      warn = sim>0 ? " ⚠ Dos capturas idénticas: revisa si un lente no está cambiando." : " ✓ Las capturas difieren: cada lente encuadra distinto.";
+    }
+    tests.lentes = warn.includes("⚠")?"warn":(shots.length>=3?"ok":shots.length>0?"warn":"fault");
+    $("#lensNote").textContent = `Detectadas ${targets.length} cámara(s) trasera(s).`+warn+" El recorte debe cerrarse de ultra gran angular a teleobjetivo.";
+    btn.disabled=false;btn.textContent="Capturar";
+  });
+  function shortLens(l){l=(l||"").toLowerCase();
+    if(/ultra/.test(l))return"Ultra gran angular";
+    if(/tele/.test(l))return"Teleobjetivo";
+    if(/gran angular|wide/.test(l))return"Gran angular";
+    return l?l.slice(0,18):"Trasera";}
+  function snap(v,w){const c=document.createElement("canvas");const r=(v.videoHeight||3)/(v.videoWidth||4);
+    c.width=w;c.height=Math.round(w*r);c.getContext("2d").drawImage(v,0,0,c.width,c.height);return c.toDataURL("image/jpeg",.7);}
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+
+  /* ---------- píxeles ---------- */
+  async function scan(mode){
+    const v=$("#vidP");if(!v||!v.videoWidth){showBanner("<b>Activa una cámara</b> antes de escanear.");return;}
+    $("#pixCount").textContent="…";$("#pmap").innerHTML="";
+    await wait(60);
+    const w=v.videoWidth,h=v.videoHeight;
+    const cap=document.createElement("canvas");cap.width=w;cap.height=h;
+    const cx=cap.getContext("2d",{willReadFrequently:true});cx.drawImage(v,0,0,w,h);
+    // frame mean from a central strip
+    let mean=0,cnt=0;{const my=Math.floor(h/2)-20,band=cx.getImageData(0,Math.max(0,my),w,Math.min(40,h)).data;
+      for(let i=0;i<band.length;i+=4){mean+=0.299*band[i]+0.587*band[i+1]+0.114*band[i+2];cnt++;}mean/=cnt;}
+    const okCond = mode==="hot"? mean<25 : mean>170;
+    if(!okCond){
+      $("#pixCount").textContent="—";
+      $("#pixNote").textContent = mode==="hot"
+        ? `El cuadro no está lo bastante oscuro (brillo ${mean.toFixed(0)}). Tapa bien el lente y repite.`
+        : `El cuadro no es lo bastante blanco (brillo ${mean.toFixed(0)}). Apunta a una superficie blanca bien iluminada y repite.`;
+      return;
+    }
+    const strip=128;let count=0;const pts=[];
+    for(let y=0;y<h;y+=strip){
+      const hh=Math.min(strip,h-y);const dd=cx.getImageData(0,y,w,hh).data;
+      for(let i=0,p=0;i<dd.length;i+=4,p++){
+        const l=0.299*dd[i]+0.587*dd[i+1]+0.114*dd[i+2];
+        const bad = mode==="hot"? l>55 : l<45;
+        if(bad){count++;if(pts.length<400){const px=p%w,py=y+Math.floor(p/w);pts.push([px/w,py/h]);}}
+      }
+    }
+    $("#pixCount").textContent=count;
+    const map=$("#pmap");map.innerHTML="";
+    pts.forEach(([x,y])=>{const dot=document.createElement("i");dot.className=mode==="hot"?"hot":"dead";
+      dot.style.left=(x*100)+"%";dot.style.top=(y*100)+"%";map.appendChild(dot);});
+    $("#pixNote").textContent = count===0
+      ? "Sin anomalías a resolución nativa. Excelente."
+      : `${count} píxel(es) fuera de rango. Unos pocos dispersos suelen ser ruido o polvo; muchos o agrupados indican daño de sensor.`;
+    if(mode==="hot"){results[state.currentLabel]=Object.assign(results[state.currentLabel]||{},{hot:count});}
+    else{results[state.currentLabel]=Object.assign(results[state.currentLabel]||{},{dead:count});}
+    tests.pixeles = count===0?"ok":count<8?"warn":"fault";
+  }
+  $("#scanHot").addEventListener("click",()=>scan("hot"));
+  $("#scanDead").addEventListener("click",()=>scan("dead"));
+
+  /* ---------- captura ---------- */
+  $("#shotBtn").addEventListener("click",()=>{
+    const v=$("#vidS");if(!v||!v.videoWidth){showBanner("<b>Activa una cámara</b> primero.");return;}
+    const c=document.createElement("canvas");c.width=v.videoWidth;c.height=v.videoHeight;
+    c.getContext("2d").drawImage(v,0,0);
+    const url=c.toDataURL("image/jpeg",.92);
+    $("#shotWrap").innerHTML=`<div class="card"><img src="${url}" style="width:100%;border-radius:10px;display:block"><a class="act" style="display:block;text-align:center;margin-top:10px;text-decoration:none" href="${url}" download="captura-${state.currentLabel.replace(/\s+/g,'-')}.jpg">Descargar (${v.videoWidth}×${v.videoHeight})</a></div>`;
+  });
+  function probeCaps(){
+    const t=state.track;
+    let zoom="no soportado",torch="no soportado";
+    if(t&&t.getCapabilities){const c=t.getCapabilities();
+      if(c.zoom)zoom=`sí (${c.zoom.min}–${c.zoom.max})`;
+      if("torch"in c&&c.torch)torch="sí";
+    }
+    $("#capZoom").textContent=zoom;$("#capTorch").textContent=torch;
+    $("#torchWrap").style.display=torch==="sí"?"block":"none";
+  }
+  $("#torchBtn").addEventListener("click",async()=>{
+    try{await state.track.applyConstraints({advanced:[{torch:true}]});
+      setTimeout(()=>state.track.applyConstraints({advanced:[{torch:false}]}).catch(()=>{}),1500);
+    }catch(e){$("#capTorch").textContent="no soportado";$("#torchWrap").style.display="none";}
+  });
+
+  /* ---------- resumen ---------- */
+  function renderSum(){
+    const cl=$("#sCamList");cl.innerHTML="";
+    if(!state.devices.length){cl.innerHTML='<div class="kv"><span class="k">—</span><span class="pill idle">Sin acceso</span></div>';}
+    state.devices.forEach(d=>{
+      const back=isBack(d.label);const row=document.createElement("div");row.className="kv";
+      row.innerHTML=`<span class="k">${d.label||"Cámara"}</span><span class="pill ${back?"ok":"idle"}">${back?"trasera detectada":"frontal"}</span>`;
+      cl.appendChild(row);
+    });
+    const backCount=state.devices.filter(d=>isBack(d.label)).length;
+    const head=document.createElement("div");head.className="kv";
+    head.innerHTML=`<span class="k"><b>Cámaras traseras</b></span><span class="pill ${backCount>=3?"ok":backCount>0?"warn":"fault"}">${backCount} / 3</span>`;
+    cl.prepend(head);
+
+    const tl=$("#sTestList");tl.innerHTML="";
+    const rows=[["Brillo / exposición",tests.brillo],["Enfoque",tests.enfoque],["Movimiento (no congelado)",tests.movimiento],
+      ["Color / canales",tests.color],["Píxeles",tests.pixeles],["Lentes (FOV)",tests.lentes]];
+    rows.forEach(([k,val])=>{
+      const cls=val||"idle";const txt=val==="ok"?"correcto":val==="warn"?"revisar":val==="fault"?"falla":"sin datos";
+      const r=document.createElement("div");r.className="kv";
+      r.innerHTML=`<span class="k">${k}</span><span class="pill ${cls}">${txt}</span>`;tl.appendChild(r);
+    });
+  }
+  $("#sExport").addEventListener("click",()=>{
+    try{
+      const backCount=state.devices.filter(d=>isBack(d.label)).length;
+      const rows=[["Traseras detectadas",backCount+" / 3",backCount>=3?"ok":backCount>0?"warn":"fault"],
+        ["Brillo / exposición",lbl(tests.brillo),tests.brillo||"idle"],["Enfoque",lbl(tests.enfoque),tests.enfoque||"idle"],
+        ["Movimiento",lbl(tests.movimiento),tests.movimiento||"idle"],["Color / canales",lbl(tests.color),tests.color||"idle"],
+        ["Píxeles",lbl(tests.pixeles),tests.pixeles||"idle"],["Lentes (FOV)",lbl(tests.lentes),tests.lentes||"idle"]];
+      const dpr=2,W=1080,pad=64,lh=76,H=(pad*2)+140+rows.length*lh+80;
+      const cv=document.createElement("canvas");cv.width=W*dpr;cv.height=H*dpr;const x=cv.getContext("2d");x.scale(dpr,dpr);
+      x.fillStyle="#080a0e";x.fillRect(0,0,W,H);
+      x.fillStyle="#39c6ff";x.beginPath();x.arc(pad+20,pad+18,20,0,7);x.fill();
+      x.fillStyle="#e9eef5";x.font="600 34px -apple-system,system-ui,sans-serif";x.fillText("Diagnóstico de cámaras",pad+58,pad+30);
+      x.fillStyle="#77839a";x.font="20px ui-monospace,monospace";x.fillText(new Date().toLocaleString(),pad+58,pad+62);
+      let y=pad+140;const col={ok:"#34d399",warn:"#f5b544",fault:"#ff5470",idle:"#4d576b"};
+      rows.forEach(([k,txt,cls])=>{x.fillStyle="#141a24";x.fillRect(pad,y,W-pad*2,lh-14);
+        x.fillStyle="#e9eef5";x.font="26px -apple-system,system-ui,sans-serif";x.fillText(k,pad+22,y+40);
+        x.fillStyle=col[cls]||col.idle;x.font="24px ui-monospace,monospace";x.textAlign="right";
+        x.fillText(String(txt).toUpperCase(),W-pad-22,y+40);x.textAlign="left";y+=lh;});
+      const a=document.createElement("a");a.download="diagnostico-camaras.png";a.href=cv.toDataURL("image/png");a.click();
+    }catch(e){alert("No se pudo generar el PNG en este visor. Prueba con «Ampliar» o abre el informe en el navegador.");}
+  });
+  function lbl(v){return v==="ok"?"correcto":v==="warn"?"revisar":v==="fault"?"falla":"sin datos";}
+
+  /* ---------- fullscreen ---------- */
+  const fsBtn=$("#fsBtn");
+  fsBtn.addEventListener("click",()=>{const el=document.documentElement;
+    if(!document.fullscreenElement){(el.requestFullscreen||el.webkitRequestFullscreen||function(){}).call(el);}
+    else{(document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document);}});
+  document.addEventListener("fullscreenchange",()=>{fsBtn.textContent=document.fullscreenElement?"Reducir":"Ampliar";});
+
+  $("#grantBtn").addEventListener("click",grant);
+  document.addEventListener("gesturestart",e=>e.preventDefault());
+  // keep readouts fresh when track changes
+  setInterval(()=>{if(state.track)updateReadout();},1500);
+})();
+</script>
+</body>
+</html>
